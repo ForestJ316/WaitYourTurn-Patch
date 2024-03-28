@@ -1,9 +1,14 @@
 {
-  "name": "example",
+  "name": "forestj316",
   "version": "1",
   "dependencies": [
+    "directxtk",
+    "fmt",
+    "rapidcsv",
     "boost-stl-interfaces",
     "rsm-binary-io",
+    "simpleini",
     "spdlog"
-  ]
+  ],
+  "builtin-baseline": "9de2e978bdfec6bb7852cc1d6ecf375c923c485c"
 }
