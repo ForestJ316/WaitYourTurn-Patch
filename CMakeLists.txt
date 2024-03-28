@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(
-	ExampleProject
-	VERSION 1.0.0
+	WaitYourTurnPatch
+	VERSION 3.0.0
 	LANGUAGES CXX
 )
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,12 +17,16 @@ macro(set_from_environment VARIABLE)
 	endif()
 endmacro()
 
-set_from_environment(Skyrim64Path)
-if(NOT DEFINED Skyrim64Path)
-	message(FATAL_ERROR "Skyrim64Path is not set")
-endif()
+set_from_environment(SkyrimPath)
+#if(NOT DEFINED SkyrimPath)
+#	message(FATAL_ERROR "SkyrimPath is not set")
+#endif()
 
-option(COPY_OUTPUT "copy the output of build operations to the game directory" OFF)
+option(COPY_OUTPUT "Copy the output of build operations to the game directory" OFF)
+option(ENABLE_SKYRIM_SE "Enable support for Skyrim SE in the dynamic runtime feature." ON)
+option(ENABLE_SKYRIM_AE "Enable support for Skyrim AE in the dynamic runtime feature." ON)
+option(ENABLE_SKYRIM_VR "Enable support for Skyrim VR in the dynamic runtime feature." OFF)
+set(BUILD_TESTS OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
