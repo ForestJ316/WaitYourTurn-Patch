@@ -5,6 +5,9 @@
 #include <REL/Relocation.h>
 #include <SKSE/SKSE.h>
 
+#include <nlohmann/json.hpp>
+#include <ScriptHelper.h>
+
 #ifdef NDEBUG
 #	include <spdlog/sinks/basic_file_sink.h>
 #else
@@ -13,6 +16,8 @@
 #pragma warning(pop)
 
 using namespace std::literals;
+
+using json = nlohmann::json;
 
 namespace logger = SKSE::log;
 

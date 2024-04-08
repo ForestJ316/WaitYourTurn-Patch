@@ -1,3 +1,7 @@
+#include <Papyrus.h>
+#include <Settings.h>
+#include <EnemyHandler.h>
+
 namespace
 {
 	void InitializeLog()
@@ -25,8 +29,51 @@ namespace
 		log->flush_on(level);
 
 		spdlog::set_default_logger(std::move(log));
-		spdlog::set_pattern("%g(%#): [%^%l%$] %v"s);
+		spdlog::set_pattern("[%H:%M:%S:%e] %v"s);
 	}
+}
+
+void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
+{
+	switch (a_msg->type)
+	{
+		case SKSE::MessagingInterface::kPostLoad:
+			{
+				logger::info("{:*^50}", "POST LOAD"sv);
+				EnemyHandler::CombatHandler::Initialize();
+			}
+			break;
+		case SKSE::MessagingInterface::kDataLoaded :
+			{
+				logger::info("{:*^50}", "DATA LOADED"sv);
+				EnemyHandler::Enemy::InitializeCirclePackage();
+				EnemyHandler::BlockHandler::InitializeForms();
+				Settings::ReadMCMSettings();
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
+{
+	a_info->infoVersion = SKSE::PluginInfo::kVersion;
+	a_info->name = Plugin::NAME.data();
+	a_info->version = Plugin::VERSION[0];
+
+	if (a_skse->IsEditor()) {
+		logger::critical("Loaded in editor, marking as incompatible"sv);
+		return false;
+	}
+
+	const auto ver = a_skse->RuntimeVersion();
+	if (ver < SKSE::RUNTIME_SSE_1_5_39 || ver < SKSE::RUNTIME_LATEST_VR) {
+		logger::critical(FMT_STRING("Unsupported runtime version {}"), ver.string());
+		return false;
+	}
+
+	return true;
 }
 
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
@@ -34,19 +81,28 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 
 	v.PluginVersion(Plugin::VERSION);
 	v.PluginName(Plugin::NAME);
-
+	v.AuthorName("ForestJ316");
 	v.UsesAddressLibrary(true);
-	v.CompatibleVersions({ SKSE::RUNTIME_LATEST });
-
+	v.CompatibleVersions({ SKSE::RUNTIME_SSE_LATEST, SKSE::RUNTIME_LATEST_VR });
+	v.HasNoStructUse(true);
 	return v;
 }();
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
 	InitializeLog();
-	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+	logger::info(FMT_STRING("{} v{}"), Plugin::NAME, Plugin::VERSION.string());
+	logger::info("Game version : {}", a_skse->RuntimeVersion().string());
 
 	SKSE::Init(a_skse);
+
+	EnemyHandler::Hooks::Install();
+	Papyrus::RegisterPapyrus();
+
+	auto messaging = SKSE::GetMessagingInterface();
+	if (!messaging->RegisterListener("SKSE", MessageHandler)) {
+		return false;
+	}
 
 	return true;
 }
