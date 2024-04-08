@@ -1,5 +1,3 @@
-This is a basic plugin template for use with CommonLibSSE-NG
-
 ## Requirements
 * [CMake](https://cmake.org/)
 	* Add this to your `PATH`
@@ -20,3 +18,7 @@ git submodule update
 cmake --preset vs2022-windows
 cmake --build build --config Release
 ```
+
+## Optional
+* [Skyrim Special Edition](https://store.steampowered.com/app/489830)
+	* Add the environment variable `SkyrimPath` to point to the folder where you want the .dll to be copied after it's finished building

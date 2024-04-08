@@ -7,7 +7,7 @@
     "rapidcsv",
     "boost-stl-interfaces",
     "rsm-binary-io",
-    "simpleini",
+    "nlohmann-json",
     "spdlog"
   ],
   "builtin-baseline": "9de2e978bdfec6bb7852cc1d6ecf375c923c485c"
