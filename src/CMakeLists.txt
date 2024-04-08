@@ -4,11 +4,19 @@ set(SOURCE_DIR "${ROOT_DIR}/src")
 set(SOURCE_FILES
 	"${SOURCE_DIR}/main.cpp"
 	"${SOURCE_DIR}/PCH.h"
+	"${SOURCE_DIR}/ScriptHelper.h"
 	"${SOURCE_DIR}/Settings.cpp"
 	"${SOURCE_DIR}/Settings.h"
+	"${SOURCE_DIR}/Utils.cpp"
+	"${SOURCE_DIR}/Utils.h"
+	"${SOURCE_DIR}/Papyrus.cpp"
+	"${SOURCE_DIR}/Papyrus.h"
 	"${SOURCE_DIR}/EnemyHandler.cpp"
 	"${SOURCE_DIR}/EnemyHandler.h"
-	#Add more later
+	"${SOURCE_DIR}/Enemy.cpp"
+	"${SOURCE_DIR}/Enemy.h"
+	"${SOURCE_DIR}/BlockHandler.cpp"
+	"${SOURCE_DIR}/BlockHandler.h"
 )
 
 source_group(TREE "${ROOT_DIR}" FILES ${SOURCE_FILES})
