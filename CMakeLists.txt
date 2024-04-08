@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(
-	WaitYourTurnPatch
+	WaitYourTurn_Patch
 	VERSION 2.1.0
 	LANGUAGES CXX
 )
