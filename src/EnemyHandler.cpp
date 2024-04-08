@@ -8,9 +8,24 @@ namespace EnemyHandler
 {
 	void CombatHandler::Initialize()
 	{
+		logger::info("Initializing EnemyHandler...");
+
 		auto scriptEventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
 		scriptEventSourceHolder->GetEventSource<RE::TESDeathEvent>()->AddEventSink(CombatHandler::GetSingleton());
 		logger::info("Registered {}"sv, typeid(RE::TESDeathEvent).name());
+
+		auto dataHandler = RE::TESDataHandler::GetSingleton();
+		FilterEffectID = dataHandler->LookupForm(0x805, "WaitYourTurn.esp")->GetFormID();
+		if (!FilterEffectID)
+			logger::critical("Failed to initialize Filter Enemy Effect");
+		BlockEffectID = dataHandler->LookupForm(0x807, "WaitYourTurn.esp")->GetFormID();
+		if (!BlockEffectID)
+			logger::critical("Failed to initialize Enemy Block Effect");
+		PlayerCombatEffectID = dataHandler->LookupForm(0x80A, "WaitYourTurn.esp")->GetFormID();
+		if (!PlayerCombatEffectID)
+			logger::critical("Failed to initialize Player Combat Effect");
+
+		logger::info("...EnemyHandler initialized.");
 	}
 
 	void CombatHandler::UpdateSettings()
@@ -83,11 +98,10 @@ namespace EnemyHandler
 	{
 		_OnEffectStart(a_effect);
 		
-		const RE::FormID effectID = a_effect->GetBaseObject()->GetLocalFormID();
-
+		const RE::FormID effectID = a_effect->GetBaseObject()->GetFormID();
 		// Filter effect on
 		// Check whether actor object exists (for loading screens etc.)
-		if (effectID == 0x805 && a_effect->target)
+		if (effectID == CombatHandler::FilterEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
 			if (!a_enemy) return;
@@ -103,7 +117,7 @@ namespace EnemyHandler
 			combatHandler->AddEnemyToList(a_enemy, a_effect);
 		}
 		// Block effect on
-		else if (effectID == 0x807 && a_effect->target)
+		else if (effectID == CombatHandler::BlockEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
 			if (!a_enemy) return;
@@ -124,10 +138,10 @@ namespace EnemyHandler
 	{
 		_OnEffectFinish(a_effect);
 
-		const RE::FormID effectID = a_effect->GetBaseObject()->GetLocalFormID();
+		const RE::FormID effectID = a_effect->GetBaseObject()->GetFormID();
 		// If player stopped combat then just reset vars
 		// Will also trigger for load game
-		if (effectID == 0x80A )
+		if (effectID == CombatHandler::PlayerCombatEffectID)
 		{
 			auto combatHandler = CombatHandler::GetSingleton();
 			combatHandler->bInitiated = false;
@@ -139,7 +153,7 @@ namespace EnemyHandler
 		// Filter effect off
 		// Check whether actor object exists (for loading screens etc.)
 		// Toggle enemy dead/invalid variable
-		else if (effectID == 0x805 && a_effect->target)
+		else if (effectID == CombatHandler::FilterEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
 			if (!a_enemy) return;
@@ -155,7 +169,7 @@ namespace EnemyHandler
 				combatHandler->EnemyDeadOrInvalid(a_enemy, enemyList[a_enemy], combatHandler->iCurrentUnlockedEnemies, true);
 		}
 		// Block effect off
-		else if (effectID == 0x807 && a_effect->target)
+		else if (effectID == CombatHandler::BlockEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
 			if (!a_enemy) return;
@@ -178,9 +192,9 @@ namespace EnemyHandler
 		
 		if (!Settings::bModEnabled) return;
 
-		const RE::FormID effectID = a_effect->GetBaseObject()->GetLocalFormID();
+		const RE::FormID effectID = a_effect->GetBaseObject()->GetFormID();
 		// Check for Filter effect and re-initiate mod accordingly
-		if (effectID == 0x805 && a_effect->target
+		if (effectID == CombatHandler::FilterEffectID && a_effect->target
 			&& a_effect->conditionStatus.any(RE::ActiveEffect::ConditionStatus::kTrue))
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);

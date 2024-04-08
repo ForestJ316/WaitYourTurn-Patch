@@ -37,15 +37,10 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type)
 	{
-		case SKSE::MessagingInterface::kPostLoad:
-			{
-				logger::info("{:*^50}", "POST LOAD"sv);
-				EnemyHandler::CombatHandler::Initialize();
-			}
-			break;
 		case SKSE::MessagingInterface::kDataLoaded :
 			{
 				logger::info("{:*^50}", "DATA LOADED"sv);
+				EnemyHandler::CombatHandler::Initialize();
 				EnemyHandler::Enemy::InitializeCirclePackage();
 				EnemyHandler::BlockHandler::InitializeForms();
 				Settings::ReadMCMSettings();

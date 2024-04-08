@@ -50,6 +50,10 @@ namespace EnemyHandler
 		using Locker = std::lock_guard<Lock>;
 		mutable Lock lock;
 
+		static inline RE::FormID FilterEffectID;
+		static inline RE::FormID BlockEffectID;
+		static inline RE::FormID PlayerCombatEffectID;
+
 		bool bInitiated = false;
 		int iEnemyCount = 0;
 		int iCurrentUnlockedEnemies = 0;
