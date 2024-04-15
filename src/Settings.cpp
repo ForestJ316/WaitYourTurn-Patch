@@ -21,8 +21,12 @@ void Settings::InitializeMCMQuest()
 Settings::EventResult Settings::ProcessEvent(const RE::TESLoadGameEvent*, RE::BSTEventSource<RE::TESLoadGameEvent>*)
 {
 	auto scriptObject = Utils::GetObjectFromForm(MCMQuestForm, "WYT_MCMScript");
-	Callback callback;
-	Script::DispatchMethodCall(scriptObject, "PassVarsOnLoadGame"sv, callback);
+	auto taskInterface = SKSE::GetTaskInterface();
+	taskInterface->AddTask([scriptObject]() {
+		Callback callback;
+		Script::DispatchMethodCall(scriptObject, "PassVarsOnLoadGame"sv, callback);
+	});
+	
 	return EventResult::kContinue;
 }
 
