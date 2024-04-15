@@ -1,9 +1,21 @@
 #pragma once
 
-#include <Enemy.h>
-#include <BlockHandler.h>
+#include "Enemy.h"
+#include "BlockHandler.h"
+
 #include <unordered_map>
-#include <shared_mutex>
+
+// Hashing function for RE::ObjectRefHandle
+// Ty to Ersh1 for the implementation!
+template <class T>
+struct std::hash<RE::BSPointerHandle<T>>
+{
+	uint32_t operator()(const RE::BSPointerHandle<T>& a_handle) const
+	{
+		uint32_t nativeHandle = const_cast<RE::BSPointerHandle<T>*>(&a_handle)->native_handle();
+		return nativeHandle;
+	}
+};
 
 namespace EnemyHandler
 {
@@ -28,10 +40,11 @@ namespace EnemyHandler
 		void SyncSettings();
 		void ResetVars();
 		
-		void AddEnemyToList(RE::Character* a_enemy, RE::ActiveEffect* a_effect);
+		void AddEnemyToList(RE::Character* a_enemy, bool bIsLoadGame);
 		void RaiseEnemyUnlock();
-		void UpdateEnemyRelock(RE::Character* a_enemy); // Native function
-		bool GetEnemyLockedState(RE::Character* a_enemy); // Native function
+		void EraseEnemy(RE::ObjectRefHandle a_enemyHandle);
+
+		void UpdateEnemyRelock(RE::ObjectRefHandle a_enemyHandle, bool bIsLOSRelock);
 
 	private:
 		friend class Hooks;
@@ -54,15 +67,15 @@ namespace EnemyHandler
 		static inline RE::FormID BlockEffectID;
 		static inline RE::FormID PlayerCombatEffectID;
 
-		bool bInitiated = false;
+		static inline bool bModStarted = false;
+		bool bCombatInitiated = false;
 		int iEnemyCount = 0;
-		int iCurrentUnlockedEnemies = 0;
-		std::unordered_map<RE::Character*, EnemyState> EnemyList;
+		std::unordered_map<RE::ObjectRefHandle, EnemyState> EnemyList;
 		
 		int iEnemiesForModStart = 0;
 		int iMaxUnlockedEnemies = 0;
-		static inline float fWindowIntervalMin = 0.f;
-		static inline float fWindowIntervalMax = 0.f;
+		float fWindowIntervalMin = 0.f;
+		float fWindowIntervalMax = 0.f;
 	};
 
 	class Hooks
@@ -72,9 +85,22 @@ namespace EnemyHandler
 		{
 			_OnEffectStart = REL::Relocation<uintptr_t>(RE::VTABLE_ScriptEffect[0]).write_vfunc(0x14, OnEffectStart); // Start
 			_OnEffectFinish = REL::Relocation<uintptr_t>(RE::VTABLE_ScriptEffect[0]).write_vfunc(0x15, OnEffectFinish); // Finish
-			_OnEffectFinishLoadGame = REL::Relocation<uintptr_t>(RE::VTABLE_ScriptEffect[0]).write_vfunc(0xA, OnEffectFinishLoadGame); // Finish
+			_OnEffectFinishLoadGame = REL::Relocation<uintptr_t>(RE::VTABLE_ScriptEffect[0]).write_vfunc(0xA, OnEffectFinishLoadGame); // Finish Load Game
+			_Update = REL::Relocation<uintptr_t>(RE::VTABLE_Character[0]).write_vfunc(0xAD, Update); // Character Update
 			logger::info("Installed virtual function hooks.");
 		}
+
+		struct UpdateState
+		{
+			// Unlock timer
+			float timer = 0.f;
+			float unlockDuration = 0.f;
+			bool isLoadGame = false;
+			// Experimental LOS check
+			float LOStimer = 0.f;
+			bool EnemyHasPackage = true;
+		};
+		static inline std::unordered_map<RE::ObjectRefHandle, UpdateState> PollingHandler;
 
 	private:
 		static void OnEffectStart(RE::ActiveEffect* a_effect);
@@ -85,5 +111,8 @@ namespace EnemyHandler
 
 		static void OnEffectFinishLoadGame(RE::ActiveEffect* a_effect, RE::BGSLoadFormBuffer* a_buf);
 		static inline REL::Relocation<decltype(OnEffectFinishLoadGame)> _OnEffectFinishLoadGame;
+
+		static void Update(RE::Character* a_enemy, float a_delta);
+		static inline REL::Relocation<decltype(Update)> _Update;
 	};
 }

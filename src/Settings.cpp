@@ -1,6 +1,30 @@
-#include <Settings.h>
-#include <EnemyHandler.h>
+#include "Settings.h"
+#include "Utils.h"
+#include "EnemyHandler.h"
+
 #include <fstream>
+
+void Settings::InitializeMCMQuest()
+{
+	logger::info("Initializing MCM Quest Form...");
+
+	RE::ScriptEventSourceHolder::GetSingleton()->GetEventSource<RE::TESLoadGameEvent>()->AddEventSink(Settings::GetSingleton());
+	logger::info("Registered {}"sv, typeid(RE::TESLoadGameEvent).name());
+
+	MCMQuestForm = RE::TESDataHandler::GetSingleton()->LookupForm(0x80B, "WaitYourTurn.esp");
+	if (!MCMQuestForm)
+		logger::critical("Failed to initialize MCM Quest");
+
+	logger::info("...MCM Quest Form done initializing.");
+}
+
+Settings::EventResult Settings::ProcessEvent(const RE::TESLoadGameEvent*, RE::BSTEventSource<RE::TESLoadGameEvent>*)
+{
+	auto scriptObject = Utils::GetObjectFromForm(MCMQuestForm, "WYT_MCMScript");
+	Callback callback;
+	Script::DispatchMethodCall(scriptObject, "PassVarsOnLoadGame"sv, callback);
+	return EventResult::kContinue;
+}
 
 void Settings::ReadMCMSettings()
 {
@@ -29,8 +53,12 @@ void Settings::ReadMCMSettings()
 			GetInt32Setting(mcm, "int", "imaxunlockedenemiesexterior", iMaxUnlockedEnemiesExterior);
 			GetFloatSetting(mcm, "float", "fwindowintervalminexterior", fWindowIntervalMinExterior);
 			GetFloatSetting(mcm, "float", "fwindowintervalmaxexterior", fWindowIntervalMaxExterior);
+			// Experimental Settings
+			GetBoolSetting(mcm, "int", "blosexperimental", bLOSExperimentalEnabled);
+			GetFloatSetting(mcm, "float", "flosexperimentaldelay", fLOSExperimentalDelay);
 
 			logger::info("...MCM read successful."sv);
+			SettingsApplied = true;
 		}
 		else
 		{

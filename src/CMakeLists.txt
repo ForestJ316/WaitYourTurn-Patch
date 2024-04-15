@@ -5,6 +5,7 @@ set(SOURCE_FILES
 	"${SOURCE_DIR}/main.cpp"
 	"${SOURCE_DIR}/PCH.h"
 	"${SOURCE_DIR}/ScriptHelper.h"
+	"${SOURCE_DIR}/Offsets.h"
 	"${SOURCE_DIR}/Settings.cpp"
 	"${SOURCE_DIR}/Settings.h"
 	"${SOURCE_DIR}/Utils.cpp"
