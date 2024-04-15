@@ -1,6 +1,6 @@
-#include <Papyrus.h>
-#include <Settings.h>
-#include <EnemyHandler.h>
+#include "Papyrus.h"
+#include "Settings.h"
+#include "EnemyHandler.h"
 
 namespace
 {
@@ -43,7 +43,9 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 				EnemyHandler::CombatHandler::Initialize();
 				EnemyHandler::Enemy::InitializeCirclePackage();
 				EnemyHandler::BlockHandler::InitializeForms();
+				Settings::InitializeMCMQuest();
 				Settings::ReadMCMSettings();
+				logger::info("{:*^50}", ""sv);
 			}
 			break;
 		default:

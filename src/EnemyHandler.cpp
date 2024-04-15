@@ -1,8 +1,8 @@
-#include <Settings.h>
-#include <Utils.h>
+#include "Settings.h"
+#include "Utils.h"
+#include "Offsets.h"
 
-#include <EnemyHandler.h>
-#include <unordered_map>
+#include "EnemyHandler.h"
 
 namespace EnemyHandler
 {
@@ -10,8 +10,7 @@ namespace EnemyHandler
 	{
 		logger::info("Initializing EnemyHandler...");
 
-		auto scriptEventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-		scriptEventSourceHolder->GetEventSource<RE::TESDeathEvent>()->AddEventSink(CombatHandler::GetSingleton());
+		RE::ScriptEventSourceHolder::GetSingleton()->GetEventSource<RE::TESDeathEvent>()->AddEventSink(CombatHandler::GetSingleton());
 		logger::info("Registered {}"sv, typeid(RE::TESDeathEvent).name());
 
 		auto dataHandler = RE::TESDataHandler::GetSingleton();
@@ -33,23 +32,25 @@ namespace EnemyHandler
 		if (!Settings::bModEnabled)
 			return;
 		auto combatHandler = CombatHandler::GetSingleton();
-		if (combatHandler->bInitiated)
+		if (combatHandler->bModStarted)
 		{
 			combatHandler->SyncSettings();
-			Callback callback;
 			for (auto it = combatHandler->EnemyList.begin(); it != combatHandler->EnemyList.end(); ++it)
 			{
-				if (!it->second.bIsDeadOrInvalid && !it->second.bIsLocked)
+				if (!it->second.bIsDeadOrInvalid && !it->second.bIsLocked && Hooks::PollingHandler[it->first].EnemyHasPackage)
 				{
-					it->second.bIsLocked = true;
-					combatHandler->iCurrentUnlockedEnemies -= 1;
-					if (BlockHandler::block_spell && !Settings::bBlockWhileCircling && it->first->HasSpell(BlockHandler::block_spell))
+					combatHandler->Enemy::iCurrentUnlockedEnemies -= 1;
+					if (it->first.get().get() && it->first.get().get()->As<RE::Character>())
 					{
-						it->first->RemoveSpell(BlockHandler::block_spell);
+						auto a_enemyCharacter = it->first.get().get()->As<RE::Character>();
+						it->second.bIsLocked = true;
+						combatHandler->BlockHandler::EnemyRemoveBlockSpell(a_enemyCharacter);
+						combatHandler->AddEnemyToList(a_enemyCharacter, false);
 					}
-					callback.reset(new VMCallback(it->first, it->second, false, false, true));
-					auto effectScriptObject = Utils::GetObjectFromEffect(it->second.effect, "WYT_EnemyUnlockScript");
-					Script::DispatchMethodCall(effectScriptObject, "MCMChanged"sv, callback);
+					else
+					{
+						combatHandler->EraseEnemy(it->first);
+					}
 				}
 			}
 		}
@@ -78,18 +79,23 @@ namespace EnemyHandler
 	void CombatHandler::ResetVars()
 	{
 		iEnemyCount = 0;
-		iCurrentUnlockedEnemies = 0;
+		Enemy::iCurrentUnlockedEnemies = 0;
 		EnemyList.clear();
+		Hooks::PollingHandler.clear();
+		Settings::SettingsApplied = false;
 	}
 
 	CombatHandler::EventResult CombatHandler::ProcessEvent(const RE::TESDeathEvent* a_event, RE::BSTEventSource<RE::TESDeathEvent>*)
 	{
 		if (Settings::bModEnabled)
 		{
-			auto a_enemy = a_event->actorDying->As<RE::Character>();
-			auto it = EnemyList.find(a_enemy);
-			if (it != EnemyList.end() && !EnemyList[a_enemy].bIsDeadOrInvalid)
-				Enemy::EnemyDeadOrInvalid(a_enemy, EnemyList[a_enemy], iCurrentUnlockedEnemies, false);
+			if (a_event && a_event->actorDying)
+			{
+				auto a_enemyHandle = a_event->actorDying->GetHandle();
+				auto it = EnemyList.find(a_enemyHandle);
+				if (it != EnemyList.end() && !EnemyList[a_enemyHandle].bIsDeadOrInvalid)
+					Enemy::EnemyDeadOrInvalid(a_enemyHandle, EnemyList[a_enemyHandle], false);
+			}
 		}
 		return EventResult::kContinue;
 	}
@@ -104,32 +110,35 @@ namespace EnemyHandler
 		if (effectID == CombatHandler::FilterEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
-			if (!a_enemy) return;
+			if (!a_enemy || a_enemy->IsPlayerRef()) return;
 
 			auto combatHandler = CombatHandler::GetSingleton();
-			if (!combatHandler->bInitiated)
+			if (!combatHandler->bCombatInitiated)
 			{
-				combatHandler->bInitiated = true;
+				combatHandler->bCombatInitiated = true;
 				combatHandler->ResetVars();
 				combatHandler->SyncSettings();
 			}
 			// Add enemy to list
-			combatHandler->AddEnemyToList(a_enemy, a_effect);
+			combatHandler->AddEnemyToList(a_enemy, false);
 		}
 		// Block effect on
 		else if (effectID == CombatHandler::BlockEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
-			if (!a_enemy) return;
+			if (!a_enemy || a_enemy->IsPlayerRef()) return;
 
 			auto combatHandler = CombatHandler::GetSingleton();
+			if (!combatHandler->bModStarted) return;
+
+			auto enemyHandle = a_enemy->GetHandle();
 			auto& enemyList = combatHandler->EnemyList;
-			auto it = enemyList.find(a_enemy);
-			if (it != enemyList.end() && !enemyList[a_enemy].bIsDeadOrInvalid)
+			auto it = enemyList.find(enemyHandle);
+			if (it != enemyList.end() && !enemyList[enemyHandle].bIsDeadOrInvalid)
 			{
-				enemyList[a_enemy].bBlockSpellActive = true;
-				if (!enemyList[a_enemy].bEnemyIsBlocking && enemyList[a_enemy].bIsLocked)
-					combatHandler->EnemyAddBlockOverride(a_enemy, enemyList[a_enemy].bEnemyIsBlocking);
+				enemyList[enemyHandle].bBlockSpellActive = true;
+				if (!enemyList[enemyHandle].bEnemyIsBlocking && enemyList[enemyHandle].bIsLocked)
+					combatHandler->EnemyAddBlockOverride(a_enemy, enemyList[enemyHandle].bEnemyIsBlocking);
 			}
 		}
 	}
@@ -139,49 +148,51 @@ namespace EnemyHandler
 		_OnEffectFinish(a_effect);
 
 		const RE::FormID effectID = a_effect->GetBaseObject()->GetFormID();
-		// If player stopped combat then just reset vars
-		// Will also trigger for load game
+		// If player stopped combat then just reset vars. Will also trigger for load game
 		if (effectID == CombatHandler::PlayerCombatEffectID)
 		{
 			auto combatHandler = CombatHandler::GetSingleton();
-			combatHandler->bInitiated = false;
+			combatHandler->bCombatInitiated = false;
+			combatHandler->bModStarted = false;
 			// Check to prevent ResetVars() getting called 2 times (other call on Filter Effect start)
 			// if player decides to disable/enable mod in combat
 			if (Settings::bModEnabled)
 				combatHandler->ResetVars();
 		}
 		// Filter effect off
-		// Check whether actor object exists (for loading screens etc.)
 		// Toggle enemy dead/invalid variable
 		else if (effectID == CombatHandler::FilterEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
-			if (!a_enemy) return;
-
-			// Remove block spell
-			if (BlockHandler::block_spell && Settings::bBlockWhileCircling)
-				a_enemy->RemoveSpell(BlockHandler::block_spell);
+			if (!a_enemy || a_enemy->IsPlayerRef()) return;
 
 			auto combatHandler = CombatHandler::GetSingleton();
+			// Remove block spell
+			combatHandler->BlockHandler::EnemyRemoveBlockSpell(a_enemy);
+			
+			auto enemyHandle = a_enemy->GetHandle();
 			auto& enemyList = combatHandler->EnemyList;
-			auto it = enemyList.find(a_enemy);
-			if (it != enemyList.end())
-				combatHandler->EnemyDeadOrInvalid(a_enemy, enemyList[a_enemy], combatHandler->iCurrentUnlockedEnemies, true);
+			auto it = enemyList.find(enemyHandle);
+			if (it != enemyList.end() && !enemyList[enemyHandle].bIsDeadOrInvalid)
+				combatHandler->EnemyDeadOrInvalid(enemyHandle, enemyList[enemyHandle], true);
 		}
 		// Block effect off
 		else if (effectID == CombatHandler::BlockEffectID && a_effect->target)
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
-			if (!a_enemy) return;
+			if (!a_enemy || a_enemy->IsPlayerRef()) return;
 
 			auto combatHandler = CombatHandler::GetSingleton();
+			if (!combatHandler->bModStarted) return;
+
+			auto enemyHandle = a_enemy->GetHandle();
 			auto& enemyList = combatHandler->EnemyList;
-			auto it = enemyList.find(a_enemy);
+			auto it = enemyList.find(enemyHandle);
 			if (it != enemyList.end())
 			{
-				enemyList[a_enemy].bBlockSpellActive = false;
-				if (enemyList[a_enemy].bEnemyIsBlocking)
-					combatHandler->EnemyRemoveBlockOverride(a_enemy, enemyList[a_enemy].bEnemyIsBlocking);
+				enemyList[enemyHandle].bBlockSpellActive = false;
+				if (enemyList[enemyHandle].bEnemyIsBlocking)
+					combatHandler->EnemyRemoveBlockOverride(a_enemy, enemyList[enemyHandle].bEnemyIsBlocking);
 			}
 		}
 	}
@@ -198,48 +209,136 @@ namespace EnemyHandler
 			&& a_effect->conditionStatus.any(RE::ActiveEffect::ConditionStatus::kTrue))
 		{
 			auto a_enemy = skyrim_cast<RE::Character*>(a_effect->target);
-			if (!a_enemy) return;
+			if (!a_enemy || a_enemy->IsPlayerRef()) return;
 
 			auto combatHandler = CombatHandler::GetSingleton();
-			if (!combatHandler->bInitiated)
+			if (!combatHandler->bCombatInitiated)
 			{
-				combatHandler->bInitiated = true;
+				combatHandler->bCombatInitiated = true;
+				combatHandler->ResetVars();
 				combatHandler->SyncSettings();
 			}
 			// Add enemy to list
-			combatHandler->AddEnemyToList(a_enemy, a_effect);
+			combatHandler->AddEnemyToList(a_enemy, true);
 		}
 	}
 
-	void CombatHandler::AddEnemyToList(RE::Character* a_enemy, RE::ActiveEffect* a_effect)
+	void Hooks::Update(RE::Character* a_enemy, float a_delta)
 	{
+		_Update(a_enemy, a_delta);
+
+		if (!CombatHandler::bModStarted || !Settings::bModEnabled) return;
+		
+		auto a_enemyHandle = a_enemy->GetHandle();
+		if (PollingHandler.find(a_enemyHandle) == PollingHandler.end())
+			return;
+
+		// Check only Unlocked Enemies or for Effect FinishLoadGame delay
+		if (PollingHandler[a_enemyHandle].unlockDuration > 0.f || (PollingHandler[a_enemyHandle].isLoadGame && Settings::SettingsApplied))
+		{
+			PollingHandler[a_enemyHandle].timer += *g_deltaTimeRealTime;
+			// If time passed then try to relock enemy
+			if (PollingHandler[a_enemyHandle].timer >= PollingHandler[a_enemyHandle].unlockDuration)
+			{
+				PollingHandler[a_enemyHandle].timer = 0.f;
+				auto combatHandler = CombatHandler::GetSingleton();
+				auto& enemyList = combatHandler->EnemyList;
+				if (enemyList.find(a_enemyHandle) != enemyList.end())
+				{
+					// Add check for Effect FinishLoadGame and call lock manually on delay
+					if (PollingHandler[a_enemyHandle].isLoadGame == true)
+					{
+						PollingHandler[a_enemyHandle].isLoadGame = false;
+						combatHandler->Enemy::LockEnemy(a_enemyHandle, enemyList[a_enemyHandle], true);
+					}
+					// Enemy locks on MCM changed, so check works for it also
+					else if (!enemyList[a_enemyHandle].bIsLocked)
+					{
+						bool bIsLOSRelock = PollingHandler[a_enemyHandle].unlockDuration < 1.f ? true : false;
+						combatHandler->UpdateEnemyRelock(a_enemyHandle, bIsLOSRelock);
+					}
+				}
+			}
+		}
+		// LOS check if setting turned on
+		else if (Settings::bLOSExperimentalEnabled)
+		{
+			PollingHandler[a_enemyHandle].LOStimer += *g_deltaTimeRealTime;
+			// Check every user-defined seconds. Default is 0.5s.
+			if (PollingHandler[a_enemyHandle].LOStimer >= Settings::fLOSExperimentalDelay)
+			{
+				PollingHandler[a_enemyHandle].LOStimer = 0.f;
+				auto a_player = RE::PlayerCharacter::GetSingleton();
+				bool arg2; // Dummy arg for reference
+				auto combatHandler = CombatHandler::GetSingleton();
+				if (a_enemy->HasLineOfSight(a_player, arg2) && !PollingHandler[a_enemyHandle].EnemyHasPackage && !combatHandler->EnemyList[a_enemyHandle].bIsLocked)
+				{
+					combatHandler->Enemy::LockEnemy(a_enemyHandle, combatHandler->EnemyList[a_enemyHandle], true);
+					PollingHandler[a_enemyHandle].EnemyHasPackage = true;
+				}
+				// Check in case Enemy went out of LOS with package active (interiors only)
+				else if (a_player->GetParentCell()->IsInteriorCell() && !a_enemy->HasLineOfSight(a_player, arg2)
+					&& PollingHandler[a_enemyHandle].EnemyHasPackage && combatHandler->EnemyList[a_enemyHandle].bIsLocked)
+				{
+					auto playerPos = a_player->GetPosition();
+					auto enemyPos = a_enemy->GetPosition();
+					if (playerPos.GetDistance(enemyPos) > 320) // Multiplicative of 64
+					{
+						combatHandler->Enemy::UnlockEnemy(a_enemyHandle, combatHandler->EnemyList[a_enemyHandle], true);
+						PollingHandler[a_enemyHandle].EnemyHasPackage = false;
+					}
+				}
+			}
+		}
+	}
+
+	void CombatHandler::AddEnemyToList(RE::Character* a_enemy, bool bIsLoadGame)
+	{
+		auto a_enemyHandle = a_enemy->GetHandle();
 		// If new enemy then increment the count
-		auto it = EnemyList.find(a_enemy);
-		if (it == EnemyList.end())
+		if (EnemyList.find(a_enemyHandle) == EnemyList.end())
 			iEnemyCount += 1;
 		// Case for: OnEffectFinish didn't fire, but OnEffectStart did
-		else if (!EnemyList[a_enemy].bIsDeadOrInvalid && !EnemyList[a_enemy].bIsLocked)
-			iCurrentUnlockedEnemies -= 1;
+		else if (!EnemyList[a_enemyHandle].bIsDeadOrInvalid && !EnemyList[a_enemyHandle].bIsLocked && Enemy::iCurrentUnlockedEnemies > 0)
+			Enemy::iCurrentUnlockedEnemies -= 1;
 
 		// Add enemy to list / Reinitialize enemy re-entering vars
-		// Args: bIsLocked, bIsDeadOrInvalid, bBlockSpellActive, bEnemyIsBlocking, magic effect
-		EnemyList[a_enemy] = { true, false, false, false, a_effect };
+		// Args: bIsLocked, bIsDeadOrInvalid, bBlockSpellActive, bEnemyIsBlocking
+		EnemyList[a_enemyHandle] = { true, false, false, false };
+
+		Hooks::PollingHandler[a_enemyHandle].timer = 0.f;
+		Hooks::PollingHandler[a_enemyHandle].isLoadGame = bIsLoadGame;
 
 		// Add block spell
-		if (BlockHandler::block_spell && Settings::bBlockWhileCircling && !a_enemy->HasSpell(BlockHandler::block_spell))
-			a_enemy->AddSpell(BlockHandler::block_spell);
+		BlockHandler::EnemyAddBlockSpell(a_enemy);
 
 		// Lock each new enemy first when mod is started
 		// Also applies if old enemy re-entering
 		if (iEnemyCount >= iEnemiesForModStart)
-			Enemy::LockEnemy(a_enemy, EnemyList[a_enemy], iCurrentUnlockedEnemies, true);
+		{
+			if (!bModStarted)
+			{
+				bModStarted = true;
+				// Lock all previous enemies also when mod starts
+				if (!bIsLoadGame)
+				{
+					for (auto it = EnemyList.begin(); it != EnemyList.end(); ++it)
+					{
+						Enemy::LockEnemy(it->first, it->second, true);
+					}
+				}
+			}
+			else if (!bIsLoadGame)
+			{
+				Enemy::LockEnemy(a_enemyHandle, EnemyList[a_enemyHandle], true);
+			}
+		}
 	}
 
 	void CombatHandler::RaiseEnemyUnlock()
 	{
 		Locker locker(lock);
-
-		int i = iCurrentUnlockedEnemies;
+		int i = Enemy::iCurrentUnlockedEnemies;
 		int iMaxUpdated = iMaxUnlockedEnemies;
 		if (Settings::bRandomizeAttackers && iMaxUnlockedEnemies > 1)
 			iMaxUpdated = Utils::GenerateRandomInt(1, iMaxUnlockedEnemies);
@@ -250,36 +349,28 @@ namespace EnemyHandler
 		while (i < iMaxUpdated)
 		{
 			i += 1;
-			auto enemyID = Utils::GetRandomEnemy(EnemyList);
-			if (enemyID)
+			auto enemyHandle = Utils::GetRandomEnemy(EnemyList);
+			if (enemyHandle)
 			{
-				EnemyList[enemyID].bIsLocked = false;
-				Enemy::UnlockEnemy(enemyID, EnemyList[enemyID], iCurrentUnlockedEnemies);
+				EnemyList[enemyHandle].bIsLocked = false;
+				Enemy::UnlockEnemy(enemyHandle, EnemyList[enemyHandle], false);
 			}
 			// No locked enemies are currently available, stop looping
-			else if (enemyID == nullptr)
+			else
 			{
 				break;
 			}
 		}
 	}
 
-	// Native function
-	void CombatHandler::UpdateEnemyRelock(RE::Character* a_enemy)
+	void CombatHandler::EraseEnemy(RE::ObjectRefHandle a_enemyHandle)
 	{
-		if (EnemyList.find(a_enemy) != EnemyList.end())
-		{
-			bool bIsModStart = EnemyList[a_enemy].bIsLocked ? true : false;
-			Enemy::LockEnemy(a_enemy, EnemyList[a_enemy], iCurrentUnlockedEnemies, bIsModStart);
-		}
+		EnemyList.erase(a_enemyHandle);
+		Hooks::PollingHandler.erase(a_enemyHandle);
 	}
 
-	// Native function
-	bool CombatHandler::GetEnemyLockedState(RE::Character* a_enemy)
+	void CombatHandler::UpdateEnemyRelock(RE::ObjectRefHandle a_enemyHandle, bool bIsLOSRelock)
 	{
-		if (iEnemyCount >= iEnemiesForModStart && EnemyList[a_enemy].bIsLocked)
-			return true;
-		else
-			return false;
+		Enemy::LockEnemy(a_enemyHandle, EnemyList[a_enemyHandle], bIsLOSRelock);
 	}
 }

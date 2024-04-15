@@ -1,8 +1,7 @@
-#include <Utils.h>
+#include "Utils.h"
 
 namespace Utils
 {
-	/*
 	auto GetObjectFromForm(RE::TESForm* a_form, const char* a_scriptName) -> Script::ObjectPtr
 	{
 		Script::ObjectPtr object = Script::GetObject(a_form, a_scriptName);
@@ -11,8 +10,9 @@ namespace Utils
 			logger::warn("Script {} is not attached to Form Type {}."sv, a_scriptName, a_form->GetFormID());
 		}
 		return object;
-	}*/
-
+	}
+	
+	/*
 	auto GetObjectFromEffect(RE::ActiveEffect* a_effect, const char* a_scriptName) -> Script::ObjectPtr
 	{
 		Script::ObjectPtr object = Script::GetObject(a_effect, a_scriptName);
@@ -22,10 +22,11 @@ namespace Utils
 		}
 		return object;
 	}
+	*/
 
-	RE::Character* GetRandomEnemy(std::unordered_map<RE::Character*, EnemyHandler::Enemy::EnemyState>& EnemyList)
+	RE::ObjectRefHandle GetRandomEnemy(std::unordered_map<RE::ObjectRefHandle, EnemyHandler::Enemy::EnemyState>& EnemyList)
 	{
-		std::vector<RE::Character*> charVector;
+		std::vector<RE::ObjectRefHandle> charVector;
 		for (auto i = EnemyList.begin(); i != EnemyList.end(); ++i)
 		{
 			if (!i->second.bIsDeadOrInvalid && i->second.bIsLocked)
@@ -44,7 +45,7 @@ namespace Utils
 		{
 			return charVector.front();
 		}
-		return nullptr;
+		return RE::ObjectRefHandle();
 	}
 
 	int GenerateRandomInt(int min, int max)

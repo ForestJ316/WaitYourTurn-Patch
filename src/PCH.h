@@ -6,7 +6,7 @@
 #include <SKSE/SKSE.h>
 
 #include <nlohmann/json.hpp>
-#include <ScriptHelper.h>
+#include "ScriptHelper.h"
 
 #ifdef NDEBUG
 #	include <spdlog/sinks/basic_file_sink.h>
@@ -18,6 +18,7 @@
 using namespace std::literals;
 
 using json = nlohmann::json;
+using Callback = RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor>;
 
 namespace logger = SKSE::log;
 

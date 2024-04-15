@@ -169,6 +169,13 @@ Event OnConfigInit()
 	OnConfigClose()
 EndEvent
 
+Function PassVarsOnLoadGame()
+	if bInitiated
+		PassVars()
+		OnConfigClose()
+	endif
+EndFunction
+
 ; New version for SKSE to update settings on existing saves
 Int Function GetVersion()
 	return 2
@@ -195,33 +202,59 @@ Event OnPageReset(String Page)
 	else 
 		UnloadCustomContent()
 	endif
-
+	
 	GetVars()
 	
 	if Page == "Circling"
 		SetCursorFillMode(TOP_TO_BOTTOM)
 		SetCursorPosition(0)
-
+		
 		AddHeaderOption("General Settings")
 		OID_ModEnabled = AddToggleOption("Mod Enabled",VAL_bModEnabled)
 		
-		Header_CircleSettings = AddHeaderOption("Circle Settings")
-		OID_BlockWhileCircling = AddToggleOption("Enemies Block While Circling", VAL_bBlockWhileCircling)
-		OID_DraugrBlockEnable = AddToggleOption("Draugr with Shields Block", VAL_bDraugrBlockEnable)
-		OID_FalmerBlockEnable = AddToggleOption("Falmer Block", VAL_bFalmerBlockEnable)
-		OID_bRandomize = AddToggleOption("Randomize Attackers", VAL_bRandomize)
-		
-		Header_InteriorSettings = AddHeaderOption("Interior Settings")
-		OID_EnemiesForModStartInterior = AddSliderOption("Mod Activate Point Indoors", VAL_iEnemiesForModStartInterior,"{0} enemies")
-		OID_MaximumAttackingEnemiesInterior = AddSliderOption("Max Attacking Enemies Indoors", VAL_iMaxUnlockedEnemiesInterior, "{0} enemies")
-		OID_MinimumAttackIntervalInterior = AddSliderOption("Minimum Attack Interval Indoors", VAL_fWindowIntervalMinInterior, "{1} seconds")
-		OID_MaximumAttackIntervalInterior = AddSliderOption("Maximum Attack Interval Indoors", VAL_fWindowIntervalMaxInterior, "{1} seconds")
-		
-		Header_ExteriorSettings = AddHeaderOption("Exterior Settings")
-		OID_EnemiesForModStartExterior = AddSliderOption("Mod Activate Point Outdoors", VAL_iEnemiesForModStartExterior,"{0} enemies")
-		OID_MaximumAttackingEnemiesExterior = AddSliderOption("Max Attacking Enemies Outdoors", VAL_iMaxUnlockedEnemiesExterior, "{0} enemies")
-		OID_MinimumAttackIntervalExterior = AddSliderOption("Minimum Attack Interval Outdoors", VAL_fWindowIntervalMinExterior, "{1} seconds")
-		OID_MaximumAttackIntervalExterior = AddSliderOption("Maximum Attack Interval Outdoors", VAL_fWindowIntervalMaxExterior, "{1} seconds")
+		; Grey out settings for Load Game also
+		if VAL_bModEnabled
+			Header_CircleSettings = AddHeaderOption("Circle Settings", OPTION_FLAG_NONE)
+			OID_BlockWhileCircling = AddToggleOption("Enemies Block While Circling", VAL_bBlockWhileCircling, OPTION_FLAG_NONE)
+			if VAL_bBlockWhileCircling
+				OID_DraugrBlockEnable = AddToggleOption("Draugr with Shields Block", VAL_bDraugrBlockEnable, OPTION_FLAG_NONE)
+				OID_FalmerBlockEnable = AddToggleOption("Falmer Block", VAL_bFalmerBlockEnable, OPTION_FLAG_NONE)
+			else
+				OID_DraugrBlockEnable = AddToggleOption("Draugr with Shields Block", VAL_bDraugrBlockEnable, OPTION_FLAG_DISABLED)
+				OID_FalmerBlockEnable = AddToggleOption("Falmer Block", VAL_bFalmerBlockEnable, OPTION_FLAG_DISABLED)
+			endif
+			OID_bRandomize = AddToggleOption("Randomize Attackers", VAL_bRandomize, OPTION_FLAG_NONE)
+			
+			Header_InteriorSettings = AddHeaderOption("Interior Settings", OPTION_FLAG_NONE)
+			OID_EnemiesForModStartInterior = AddSliderOption("Mod Activate Point Indoors", VAL_iEnemiesForModStartInterior,"{0} enemies", OPTION_FLAG_NONE)
+			OID_MaximumAttackingEnemiesInterior = AddSliderOption("Max Attacking Enemies Indoors", VAL_iMaxUnlockedEnemiesInterior, "{0} enemies", OPTION_FLAG_NONE)
+			OID_MinimumAttackIntervalInterior = AddSliderOption("Minimum Attack Interval Indoors", VAL_fWindowIntervalMinInterior, "{1} seconds", OPTION_FLAG_NONE)
+			OID_MaximumAttackIntervalInterior = AddSliderOption("Maximum Attack Interval Indoors", VAL_fWindowIntervalMaxInterior, "{1} seconds", OPTION_FLAG_NONE)
+			
+			Header_ExteriorSettings = AddHeaderOption("Exterior Settings", OPTION_FLAG_NONE)
+			OID_EnemiesForModStartExterior = AddSliderOption("Mod Activate Point Outdoors", VAL_iEnemiesForModStartExterior,"{0} enemies", OPTION_FLAG_NONE)
+			OID_MaximumAttackingEnemiesExterior = AddSliderOption("Max Attacking Enemies Outdoors", VAL_iMaxUnlockedEnemiesExterior, "{0} enemies", OPTION_FLAG_NONE)
+			OID_MinimumAttackIntervalExterior = AddSliderOption("Minimum Attack Interval Outdoors", VAL_fWindowIntervalMinExterior, "{1} seconds", OPTION_FLAG_NONE)
+			OID_MaximumAttackIntervalExterior = AddSliderOption("Maximum Attack Interval Outdoors", VAL_fWindowIntervalMaxExterior, "{1} seconds", OPTION_FLAG_NONE)
+		else
+			Header_CircleSettings = AddHeaderOption("Circle Settings", OPTION_FLAG_DISABLED)
+			OID_BlockWhileCircling = AddToggleOption("Enemies Block While Circling", VAL_bBlockWhileCircling, OPTION_FLAG_DISABLED)
+			OID_DraugrBlockEnable = AddToggleOption("Draugr with Shields Block", VAL_bDraugrBlockEnable, OPTION_FLAG_DISABLED)
+			OID_FalmerBlockEnable = AddToggleOption("Falmer Block", VAL_bFalmerBlockEnable, OPTION_FLAG_DISABLED)
+			OID_bRandomize = AddToggleOption("Randomize Attackers", VAL_bRandomize, OPTION_FLAG_DISABLED)
+			
+			Header_InteriorSettings = AddHeaderOption("Interior Settings", OPTION_FLAG_DISABLED)
+			OID_EnemiesForModStartInterior = AddSliderOption("Mod Activate Point Indoors", VAL_iEnemiesForModStartInterior,"{0} enemies", OPTION_FLAG_DISABLED)
+			OID_MaximumAttackingEnemiesInterior = AddSliderOption("Max Attacking Enemies Indoors", VAL_iMaxUnlockedEnemiesInterior, "{0} enemies", OPTION_FLAG_DISABLED)
+			OID_MinimumAttackIntervalInterior = AddSliderOption("Minimum Attack Interval Indoors", VAL_fWindowIntervalMinInterior, "{1} seconds", OPTION_FLAG_DISABLED)
+			OID_MaximumAttackIntervalInterior = AddSliderOption("Maximum Attack Interval Indoors", VAL_fWindowIntervalMaxInterior, "{1} seconds", OPTION_FLAG_DISABLED)
+			
+			Header_ExteriorSettings = AddHeaderOption("Exterior Settings", OPTION_FLAG_DISABLED)
+			OID_EnemiesForModStartExterior = AddSliderOption("Mod Activate Point Outdoors", VAL_iEnemiesForModStartExterior,"{0} enemies", OPTION_FLAG_DISABLED)
+			OID_MaximumAttackingEnemiesExterior = AddSliderOption("Max Attacking Enemies Outdoors", VAL_iMaxUnlockedEnemiesExterior, "{0} enemies", OPTION_FLAG_DISABLED)
+			OID_MinimumAttackIntervalExterior = AddSliderOption("Minimum Attack Interval Outdoors", VAL_fWindowIntervalMinExterior, "{1} seconds", OPTION_FLAG_DISABLED)
+			OID_MaximumAttackIntervalExterior = AddSliderOption("Maximum Attack Interval Outdoors", VAL_fWindowIntervalMaxExterior, "{1} seconds", OPTION_FLAG_DISABLED)
+		endif		
 		
 		SetCursorPosition(1)
 		AddHeaderOption("Preset Save/Load (Requires PapyrusUtil)")
@@ -229,20 +262,25 @@ Event OnPageReset(String Page)
 		OID_bSave = AddTextOption("Save Preset", "")
 		OID_bLoad = AddTextOption("Load Preset", "")
 		
-		Header_ExperimentalSettings = AddHeaderOption("Experimental Settings")
-		OID_bLOSExperimental = AddToggleOption("Line of Sight Checking", VAL_bLOSExperimental)
-		
-		Header_ResetSettings = AddHeaderOption("Reset Settings")
-		string sResetText = "<font color='#FF0000'>Default Settings</font>"
-		OID_bResetSettings = AddTextOption(sResetText, "")
-		
+		if VAL_bModEnabled
+			Header_ExperimentalSettings = AddHeaderOption("Experimental Settings", OPTION_FLAG_NONE)
+			OID_bLOSExperimental = AddToggleOption("Line of Sight Checking", VAL_bLOSExperimental, OPTION_FLAG_NONE)
+			
+			Header_ResetSettings = AddHeaderOption("Reset Settings", OPTION_FLAG_NONE)
+			string sResetText = "<font color='#FF0000'>Default Settings</font>"
+			OID_bResetSettings = AddTextOption(sResetText, "", OPTION_FLAG_NONE)
+		else
+			Header_ExperimentalSettings = AddHeaderOption("Experimental Settings", OPTION_FLAG_DISABLED)
+			OID_bLOSExperimental = AddToggleOption("Line of Sight Checking", VAL_bLOSExperimental, OPTION_FLAG_DISABLED)
+			
+			Header_ResetSettings = AddHeaderOption("Reset Settings", OPTION_FLAG_DISABLED)
+			string sResetText = "<font color='#FF0000'>Default Settings</font>"
+			OID_bResetSettings = AddTextOption(sResetText, "", OPTION_FLAG_DISABLED)
+		endif
 		;AddHeaderOption("Dev Options")
-
 		;OID_DebugMode = AddToggleOption("Debug Notifications", VAL_bDebug)
 	endif
 EndEvent
-
-
 
 Event OnOptionSliderOpen(int option)
 	if option == OID_MaximumAttackingEnemiesInterior

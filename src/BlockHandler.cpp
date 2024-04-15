@@ -1,5 +1,5 @@
-#include <BlockHandler.h>
-#include <Settings.h>
+#include "BlockHandler.h"
+#include "Settings.h"
 
 namespace EnemyHandler
 {
@@ -13,7 +13,7 @@ namespace EnemyHandler
 		if (!regularBlockStart_idleForm)
 			logger::critical("Failed to initialize Form {} (BlockingStart)", regularBlockStart_idleForm->GetFormID());
 
-		// DraugrBlockStart Form
+		// DraugrBlockStart Form (Shields only)
 		draugrBlockStart_idleForm = dataHandler->LookupForm<RE::TESIdleForm>(0x3533C, "Skyrim.esm");
 		if (!draugrBlockStart_idleForm)
 			logger::critical("Failed to initialize Form {} (DraugrBlockStart)", draugrBlockStart_idleForm->GetFormID());
@@ -50,17 +50,17 @@ namespace EnemyHandler
 		Locker locker(lock);
 
 		auto aiProcess = a_enemy->GetActorRuntimeData().currentProcess;
-		if (a_enemy->IsInFaction(draugrFaction) && draugrBlockStart_idleForm && Settings::bDraugrBlockEnabled)
+		if (draugrBlockStart_idleForm && Settings::bDraugrBlockEnabled && a_enemy->IsInFaction(draugrFaction))
 		{
 			aiProcess->PlayIdle(a_enemy, draugrBlockStart_idleForm, a_enemy);
 			bIsBlocking = true;
 		}
-		else if (a_enemy->IsInFaction(falmerFaction) && falmerBlockStart_idleForm && Settings::bFalmerBlockEnabled)
+		else if (falmerBlockStart_idleForm && Settings::bFalmerBlockEnabled && a_enemy->IsInFaction(falmerFaction))
 		{
 			aiProcess->PlayIdle(a_enemy, falmerBlockStart_idleForm, a_enemy);
 			bIsBlocking = true;
 		}
-		else if (regularBlockStart_idleForm)
+		else if (regularBlockStart_idleForm && !a_enemy->IsInFaction(draugrFaction) && !a_enemy->IsInFaction(falmerFaction))
 		{
 			aiProcess->PlayIdle(a_enemy, regularBlockStart_idleForm, a_enemy);
 			bIsBlocking = true;
@@ -77,5 +77,17 @@ namespace EnemyHandler
 			aiProcess->PlayIdle(a_enemy, idleStopLoose_idleForm, a_enemy);
 			bIsBlocking = false;
 		}
+	}
+
+	void BlockHandler::EnemyAddBlockSpell(RE::Character* a_enemy)
+	{
+		if (block_spell && Settings::bBlockWhileCircling && !a_enemy->HasSpell(block_spell))
+			a_enemy->AddSpell(block_spell);
+	}
+
+	void BlockHandler::EnemyRemoveBlockSpell(RE::Character* a_enemy)
+	{
+		if (block_spell && Settings::bBlockWhileCircling && a_enemy->HasSpell(block_spell))
+			a_enemy->RemoveSpell(block_spell);
 	}
 }
