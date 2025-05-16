@@ -14,15 +14,19 @@ namespace EnemyHandler
 		logger::info("Registered {}"sv, typeid(RE::TESDeathEvent).name());
 
 		auto dataHandler = RE::TESDataHandler::GetSingleton();
-		FilterEffectID = dataHandler->LookupForm(0x805, "WaitYourTurn.esp")->GetFormID();
-		if (!FilterEffectID)
-			logger::critical("Failed to initialize Filter Enemy Effect");
-		BlockEffectID = dataHandler->LookupForm(0x807, "WaitYourTurn.esp")->GetFormID();
-		if (!BlockEffectID)
-			logger::critical("Failed to initialize Enemy Block Effect");
-		PlayerCombatEffectID = dataHandler->LookupForm(0x80A, "WaitYourTurn.esp")->GetFormID();
-		if (!PlayerCombatEffectID)
-			logger::critical("Failed to initialize Player Combat Effect");
+		if (dataHandler)
+		{
+			FilterEffectID = dataHandler->LookupForm(0x805, "WaitYourTurn.esp")->GetFormID();
+			if (!FilterEffectID)
+				logger::critical("Failed to initialize Filter Enemy Effect");
+			BlockEffectID = dataHandler->LookupForm(0x807, "WaitYourTurn.esp")->GetFormID();
+			if (!BlockEffectID)
+				logger::critical("Failed to initialize Enemy Block Effect");
+			PlayerCombatEffectID = dataHandler->LookupForm(0x80A, "WaitYourTurn.esp")->GetFormID();
+			if (!PlayerCombatEffectID)
+				logger::critical("Failed to initialize Player Combat Effect");
+		}
+		
 
 		logger::info("...EnemyHandler initialized.");
 	}

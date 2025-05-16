@@ -79,19 +79,19 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	v.PluginVersion(Plugin::VERSION);
 	v.PluginName(Plugin::NAME);
 	v.AuthorName("ForestJ316");
-	v.UsesAddressLibrary(true);
-	v.CompatibleVersions({ SKSE::RUNTIME_SSE_LATEST, SKSE::RUNTIME_LATEST_VR });
-	v.HasNoStructUse(true);
+	v.UsesAddressLibrary();
+	v.CompatibleVersions({ SKSE::RUNTIME_SSE_LATEST_SE, SKSE::RUNTIME_SSE_LATEST_AE, SKSE::RUNTIME_LATEST_VR });
+	v.UsesNoStructs();
 	return v;
 }();
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
+	SKSE::Init(a_skse);
+
 	InitializeLog();
 	logger::info(FMT_STRING("{} v{}"), Plugin::NAME, Plugin::VERSION.string());
 	logger::info("Game version : {}", a_skse->RuntimeVersion().string());
-
-	SKSE::Init(a_skse);
 
 	EnemyHandler::Hooks::Install();
 	Papyrus::RegisterPapyrus();
