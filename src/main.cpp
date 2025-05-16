@@ -65,7 +65,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 	}
 
 	const auto ver = a_skse->RuntimeVersion();
-	if ((ver != SKSE::RUNTIME_LATEST_VR && ver < SKSE::RUNTIME_SSE_1_5_39) || ver < SKSE::RUNTIME_LATEST_VR) {
+	if (ver < SKSE::RUNTIME_SSE_1_5_39 || ver < SKSE::RUNTIME_LATEST_VR) {
 		logger::critical(FMT_STRING("Unsupported runtime version {}"), ver.string());
 		return false;
 	}
@@ -79,8 +79,9 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	v.PluginVersion(Plugin::VERSION);
 	v.PluginName(Plugin::NAME);
 	v.AuthorName("ForestJ316");
-	v.UsesAddressLibrary();
+	v.UsesAddressLibrary(true);
 	v.CompatibleVersions({ SKSE::RUNTIME_SSE_LATEST, SKSE::RUNTIME_LATEST_VR });
+	v.HasNoStructUse(true);
 	return v;
 }();
 
