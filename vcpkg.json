@@ -1,14 +1,13 @@
 {
   "name": "forestj316",
-  "version": "1",
+  "version": "2.1.5",
   "dependencies": [
     "directxtk",
     "fmt",
     "rapidcsv",
-    "boost-stl-interfaces",
     "rsm-binary-io",
     "nlohmann-json",
     "spdlog"
   ],
-  "builtin-baseline": "9de2e978bdfec6bb7852cc1d6ecf375c923c485c"
+  "builtin-baseline": "2d6a6cf3ac9a7cc93942c3d289a2f9c661a6f4a7"
 }
